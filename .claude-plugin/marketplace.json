@@ -2,12 +2,19 @@
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "autopilot-marketplace",
   "description": "Custom marketplace for the Claude Autopilot plugin",
+  "owner": {
+    "name": "FlickinCode",
+    "email": "support@flickincode.com"
+  },
   "plugins": [
     {
       "name": "autopilot",
       "description": "1:1 mirror of Copilot Autopilot for Claude Code",
       "category": "development",
-      "source": ".",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/FlickinCode/claude-autopilot.git"
+      },
       "homepage": "https://github.com/FlickinCode/claude-autopilot"
     }
   ]
