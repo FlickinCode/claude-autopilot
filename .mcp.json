@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "autopilot": {
+      "command": "node",
+      "args": ["C:/Users/bmile/claude-autopilot/mcp/index.js"]
+    }
+  }
+}

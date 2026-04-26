@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "autopilot-marketplace",
+  "description": "Custom marketplace for the Claude Autopilot plugin",
+  "plugins": [
+    {
+      "name": "autopilot",
+      "description": "1:1 mirror of Copilot Autopilot for Claude Code",
+      "category": "development",
+      "source": ".",
+      "homepage": "https://github.com/your-username/claude-autopilot"
+    }
+  ]
+}

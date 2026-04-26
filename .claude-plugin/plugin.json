@@ -1,0 +1,5 @@
+{
+  "name": "autopilot",
+  "description": "1:1 mirror of Copilot Autopilot for Claude Code",
+  "bin": ["bin/autopilot", "bin/autopilot.ps1"]
+}

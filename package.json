@@ -1,0 +1,22 @@
+{
+  "name": "claude-autopilot",
+  "version": "1.0.0",
+  "description": "1:1 mirror of Copilot Autopilot for Claude Code",
+  "main": "install.js",
+  "bin": {
+    "autopilot-install": "install.js"
+  },
+  "scripts": {
+    "setup": "node install.js",
+    "package": "tar -cvzf autopilot-plugin.tar.gz .claude-plugin bin mcp skills README.md install.js"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "autopilot",
+    "autonomous",
+    "copilot"
+  ],
+  "author": "",
+  "license": "MIT"
+}

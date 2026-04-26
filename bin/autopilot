@@ -1,0 +1,112 @@
+#!/bin/bash
+
+# Claude Autopilot Orchestrator
+# Mirrors Copilot CLI Autopilot 1:1
+
+TASK=$1
+
+# Set the Git Bash path for Claude Code
+export CLAUDE_CODE_GIT_BASH_PATH="D:/Git/bin/bash.exe"
+
+if [ -z "$TASK" ]; then
+  echo "Usage: autopilot \"task description\""
+  exit 1
+fi
+
+MAX_TURNS=15
+TURN=0
+DB_PATH="C:/Users/bmile/claude-autopilot/mcp/session_store.db"
+
+echo "[Autopilot] Starting task: $TASK"
+
+# Function to get todo status from SQL
+get_todo_status() {
+  if [ -f "$DB_PATH" ]; then
+    # Use node to query the sqlite database since sqlite3 CLI might not be installed
+    # Ensure NODE_PATH is set to the mcp directory's node_modules
+    STATUS_JSON=$(NODE_PATH="C:/Users/bmile/claude-autopilot/mcp/node_modules" node -e "
+      const sqlite3 = require('sqlite3').verbose();
+      const db = new sqlite3.Database('$DB_PATH');
+      db.all('SELECT status, COUNT(*) as count FROM todos GROUP BY status', [], (err, rows) => {
+        if (err) { console.log('0 in progress, 0 done (0 total)'); process.exit(0); }
+        const stats = { in_progress: 0, done: 0, total: 0 };
+        rows.forEach(row => {
+          if (row.status === 'in_progress') stats.in_progress = row.count;
+          if (row.status === 'done') stats.done = row.count;
+          stats.total += row.count;
+        });
+        process.stdout.write(\`\${stats.in_progress} in progress, \${stats.done} done (\${stats.total} total)\`);
+        db.close();
+      });
+    " 2>/dev/null)
+    echo "${STATUS_JSON:-0 in progress, 0 done (0 total)}"
+  else
+    echo "0 in progress, 0 done (0 total)"
+  fi
+}
+
+# Initial turn
+COMMAND="claude -p \"$TASK\" --permission-mode bypassPermissions --plugin-dir ."
+OUTPUT=$(eval $COMMAND 2>&1)
+EXIT_CODE=$?
+
+while [ $TURN -lt $MAX_TURNS ]; do
+  ((TURN++))
+  echo "--------------------------------------------------"
+  echo "[Autopilot] Turn $TURN/$MAX_TURNS"
+  
+  # 1. Check for termination signal
+  if [[ "$OUTPUT" == *"AUTOPILOT_TASK_COMPLETE"* ]]; then
+    SUMMARY=$(echo "$OUTPUT" | grep "AUTOPILOT_TASK_COMPLETE" | sed 's/.*AUTOPILOT_TASK_COMPLETE: //')
+    echo "--------------------------------------------------"
+    echo "[Autopilot] Task Complete!"
+    echo "Summary: $SUMMARY"
+    exit 0
+  fi
+
+  # 2. Catch fatal command errors or empty output
+  if [ $EXIT_CODE -ne 0 ] || [ -z "$OUTPUT" ]; then
+    echo "--------------------------------------------------"
+    echo "[Autopilot] ERROR: Claude CLI failed or returned empty output."
+    echo "Exit Code: $EXIT_CODE"
+    echo "Last Output: $OUTPUT"
+    exit 1
+  fi
+
+  # 3. Transformed Content Injection with Dynamic Todo Status
+  CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  TODO_STATUS=$(get_todo_status)
+  
+  REMINDER="<current_datetime>$CURRENT_TIME</current_datetime>
+<tools_changed_notice>New tools available: task_complete</tools_changed_notice>
+
+You have not yet marked the task as complete using the task_complete tool. If you were planning, stop planning and start implementing. You aren't done until you have fully completed the task.
+
+IMPORTANT: Do NOT call task_complete if:
+- You have open questions or ambiguities - make good decisions and keep working
+- You encountered an error - try to resolve it or find an alternative approach
+- There are remaining steps - complete them first
+
+Keep working autonomously until the task is truly finished, then call task_complete.
+
+<reminder>
+<sql_tables>Available tables: todos, todo_deps, inbox_entries</sql_tables>
+</reminder>
+<reminder>
+<todo_status>
+Todos: $TODO_STATUS
+Use sql tool to query ready todos and update status as you work.
+</todo_status>
+</reminder>"
+
+  echo "[Autopilot] Continuing..."
+  
+  # Resume turn
+  COMMAND="claude -p \"$REMINDER\" --permission-mode bypassPermissions --plugin-dir ."
+  OUTPUT=$(eval $COMMAND 2>&1)
+  EXIT_CODE=$?
+done
+
+echo "--------------------------------------------------"
+echo "[Autopilot] ERROR: Maximum turn limit ($MAX_TURNS) reached. Looping detected or task too complex."
+exit 1
